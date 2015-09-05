@@ -3,8 +3,8 @@ Supplementary materials (S1) for Journal of Language Evolution tutorial on lingu
 
 # Authors:
 
-Bodo Winter ( bodowinter.com )
-Martijn Wieling ( martijnwieling.nl )
+- Bodo Winter ( bodowinter.com )
+- Martijn Wieling ( martijnwieling.nl )
 
 # Files:
 
