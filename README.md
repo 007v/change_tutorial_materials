@@ -1,12 +1,12 @@
 Supplementary materials (S1) for Journal of Language Evolution tutorial on linguistic change analysis
-====================
+---------------------
 
-# Authors:
+### Authors:
 
 - Bodo Winter ( bodowinter.com )
 - Martijn Wieling ( martijnwieling.nl )
 
-# Files:
+### Files:
 
 - 'example1_iterated.csv' : contains example data showing a linear effect
 - 'example2_dyads.csv' : contains example data showing a quadratic effect
