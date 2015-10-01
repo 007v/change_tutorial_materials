@@ -229,9 +229,9 @@ library(mgcv)
 
 ## Fit the model with a non-linear effect over time:
 
-m <- bam(iconicity ~ s(t, k=5) + # fixed effects
-	s(t,dyad,bs='fs',k=5,m=1),		# random effects
-	data = dyads, method='fREML')
+m <- bam(iconicity ~ s(t, k = 5) + # fixed effects
+	s(t, dyad, bs = 'fs', k = 5, m = 1),		# random effects
+	data = dyads, method = 'fREML')
 # As there are only 10 time points, k is set to at most 5
 # method = 'fREML' is comparable to REML = T in the mixed-effects syntax
 # The warning ("model has repeated 1-d smooths of same variable") can be ignored
@@ -282,7 +282,7 @@ rhoval <- acf_resid(m)[2]
 m2 <- bam(iconicity ~ s(t, k = 5) + 			# fixed effects
 	s(t, dyad, bs = 'fs', k = 5, m = 1),		# random effects
 	data = dyads2, method='fREML',
-	rho=rhoval, AR.start=start.event		# autocorrelation parameters
+	rho = rhoval, AR.start = start.event		# autocorrelation parameters
     )
 
 acf_resid(m2) # no significant autocorrelation (as before)
