@@ -1,12 +1,18 @@
 ## Bodo Winter & Martijn Wieling
 ## Supplementary materials for paper on time series analysis for language evolution research
 ## Created: September 5, 2015
+## Last changed: September 7, 2015; October 1, 2015
 
 ## Load in data:
 
 IL <- read.csv('example1_iterated.csv')
 dyads <- read.csv('example2_dyads.csv')
 
+## Make sure that random effect factors are coded as factors
+## lmer() automatically converts random effects into factors, GAM does not
+
+IL$chain <- as.factor(IL$chain)
+dyads$dyad <- as.factor(dyads$dyad)
 
 ##------------------------------------------------------------------
 ## Analysis of IL experiment:
@@ -17,7 +23,7 @@ dyads <- read.csv('example2_dyads.csv')
 plot(1, 1, xlim = c(0, 11), ylim = c(0, 10), type = 'n')	# creates empty plot
 for (i in 1:6) {	# loop through chains and plot each as separate line
 	points(IL[IL$chain == i, ]$t, IL[IL$chain == i, ]$y, type = 'l')
-	}
+}
 
 ## Load mixed model library:
 
@@ -25,17 +31,20 @@ library(lme4)
 
 ## Construct mixed model with random slopes for time by chain:
 
-xmdl <- lmer(y ~ t + (1+t|chain), data = IL, REML = F)
+xmdl <- lmer(y ~ t + (1+t|chain), data = IL, REML = T)
 # Explanation:
 # - mixed model modeling y as a function of time (t)
 # - with random intercepts (by-chain variation in y)
 # - and random slopes for time (by-chain variation in the slope of t)
 # - and a random intercept / slope correlation
-# - we set REML = F because we want to perform likelihood ratio tests
+# - we set REML = T because we want to perform likelihood ratio tests 
+#   comparing the random effects (for fixed effects it should be REML = F)
+#   (The estimates for the variance of the random effects are better
+#    when using REML = T.) 
 
 ## The same model with decorrelated random effects structure:
 
-xmdl2 <- lmer(y ~ t + (1|chain) + (0+t|chain), data = IL, REML = F)
+xmdl2 <- lmer(y ~ t + (1|chain) + (0+t|chain), data = IL, REML = T)
 # Explanation:
 # - same as above but without the (unecessary) random intercept / slope correlation
 
@@ -43,24 +52,36 @@ xmdl2 <- lmer(y ~ t + (1|chain) + (0+t|chain), data = IL, REML = F)
 
 summary(xmdl)	# notice the correlation term in the random effects component (close to 0)
 summary(xmdl2)	# notice that there are now separate lines for random intercepts and slopes
-# notice also that the estimated random slope variance is rather small (= 0.023) in comparison
+# notice also that the estimated random slope variance is rather small (= 0.029) in comparison
+
+## Test the necessity of the correlation parameter:
+
+anova(xmdl, xmdl2, refit = F) # not necessary (p = 0.86)
+# We compare xmdl and xmdl2 with refit=F to ensure that
+# no refitting with REML = F happens (default for likelihood ratio tests)
 
 ## Check whether the random slope is needed by means of a likelihood ratio test ...
 ## ... to do this, we need to construct a comparison model without random slopes:
 
-xmdl2_noslopes <- lmer(y ~ t + (1|chain), data = IL, REML = F)
+xmdl2_noslopes <- lmer(y ~ t + (1|chain), data = IL, REML = T)
 
 ## Then test the two models against each other:
 
-anova(xmdl2_noslopes, xmdl2, test = 'Chisq')
+anova(xmdl2_noslopes, xmdl2, refit = F)
 # There is a significant difference, indicating that the slopes do improve the fit
-# The model with slopes ("xmdl2") has a lower AIC (= better fit) ... 
-# ... than the model with slopes ("xmdl2_noslopes" )
+# The model with slopes ("xmdl2") has a higher log likelihood / lower AIC (= better fit) ... 
+# ... than the model without slopes ("xmdl2_noslopes" )
+
+# Then test if a correlation parameter is necessary (for this we first center t, following Baayen, 2008, p. 277)
+IL$t_c <- IL$t - mean(IL$t)
+xmdl2a <- lmer(y ~ t_c + (1|chain) + (0+t_c|chain), data = IL, REML = T)
+xmdl2c <- lmer(y ~ t_c + (1+t_c|chain), data = IL, REML = T)
+anova(xmdl2a, xmdl2c, refit = F) # p > 0.05, so correlation parameter is not necessary
+
 
 ## Test the effect of time by constructing a comparison model (in this case a null modl) without time:
-
 xmdl_null <- lmer(y ~ 1 + (1|chain) + (0+t|chain), data = IL, REML = F)
-anova(xmdl_null, xmdl2, test = 'Chisq')
+anova(xmdl_null, xmdl2) # anova automatically refits with ML
 # Explanation:
 # - "1" represents the intercept and in this case indicates that no other fixed effects are in the model
 # - notice that when testing for a fixed effect, we keep the random effects structure the same
@@ -78,7 +99,7 @@ plot(fitted(xmdl2), residuals(xmdl2))	# good
 
 ## Inspect the random effects estimates:
 
-coef(xmdl2)		# chain 3 has a really low intercept (negative), chain 6 has a very shallow slope of t
+coef(xmdl2) # chain 3 has a really low intercept (negative), chain 6 has a very shallow slope of t
 
 
 
@@ -90,8 +111,8 @@ coef(xmdl2)		# chain 3 has a really low intercept (negative), chain 6 has a very
 
 plot(1, 1, xlim = c(0, 11), ylim = c(0, 10), type = 'n')	# creates empty plot
 for (i in 1:6) {	# loop through chains and plot each as separate line
-	points(dyads[dyads$dyad == i, ]$t, dyads[dyads$dyad == i, ]$y, type = 'l')
-	}
+	points(dyads[dyads$dyad == i, ]$t, dyads[dyads$dyad == i, ]$iconicity, type = 'l')
+}
 
 ## Load mixed model library:
 
@@ -117,41 +138,60 @@ cor(dyads$t, dyads$t^2)		# r = 0.97
 
 xmdl <- lmer(iconicity ~ t_c + t_c2 +	# fixed effects
 	(1|dyad) + (0+t_c|dyad) + (0+t_c2|dyad),		# random effects
-	data = dyads, REML = F)
+	data = dyads, REML = T)
 
-## Create model without quadratic random slope and without linear random slope:
+## Create model without quadratic random slope, without linear random slope, and without both:
 
-xmdl_red1 <- lmer(iconicity ~ t_c + t_c2 +	# fixed effects
+xmdl_red1a <- lmer(iconicity ~ t_c + t_c2 +	# fixed effects
 	(1|dyad) + (0+t_c|dyad),		# random effects
-	data = dyads, REML = F)
+	data = dyads, REML = T)
+xmdl_red1b <- lmer(iconicity ~ t_c + t_c2 +	# fixed effects
+	(1|dyad) + (0+t_c2|dyad),		# random effects
+	data = dyads, REML = T)
 xmdl_red2 <- lmer(iconicity ~ t_c + t_c2 +	# fixed effects
 	(1|dyad),		# random effects
-	data = dyads, REML = F)
-anova(xmdl_red2, xmdl_red1, xmdl, test = 'Chisq')
-# Explanation:
-# - the linear slope model differs from the one without slopes; thus the linear slopes are warranted
-# - the quadratic slopes do not differ from the model with only linear slopes ...
-# ... hence we choose the simpler model
+	data = dyads, REML = T)
 
-xmdl <- xmdl_red1	# make model with linear random slopes the main model
+anova(xmdl_red2, xmdl_red1a, refit = F)
+# Explanation:
+# - the model with the linear slope does not differ from the one without slopes; thus the linear slopes are not warranted
+
+anova(xmdl_red2, xmdl_red1b, refit = F)
+# Explanation:
+# - the model with the quadratic slope does differ from the one without slopes; thus the quadratic slopes are warranted
+
+anova(xmdl_red1b, xmdl, refit = F)
+# Explanation:
+# - the model with both slopes does not differ from the one with only quadratic slopes, thus xmdl_red1b is the best model
+
+xmdl <- xmdl_red1b	# make model with quadratic random slopes the main model
 
 ## Inspect the random effects estimates:
 
-coef(xmdl)	# notice that "t_c" is different for the different dyads
-# "t_c2" is the same because we dropped the random slopes for the quadratic effect
+coef(xmdl)	# notice that "t_c2" is different for the different dyads
+# "t_c" is the same because we dropped the random slopes for the linear effect
 
 ## Test quadratic and linear effects using likelihood ratio tests:
 
+xmdl_noLINQR <- lmer(iconicity ~ 1 +	# fixed effects
+	(1|dyad) + (0+t_c2|dyad),		# random effects
+	data = dyads, REML = F)
 xmdl_noQR <- lmer(iconicity ~ t_c +	# fixed effects
-	(1|dyad) + (0+t_c|dyad),		# random effects
+	(1|dyad) + (0+t_c2|dyad),		# random effects
 	data = dyads, REML = F)
-xmdl_noLIN <- lmer(iconicity ~ 1 +	# fixed effects
-	(1|dyad) + (0+t_c|dyad),		# random effects
+xmdl_noLIN <- lmer(iconicity ~ t_c2 +	# fixed effects
+	(1|dyad) + (0+t_c2|dyad),		# random effects
 	data = dyads, REML = F)
-anova(xmdl_noLIN, xmdl_noQR, xmdl, test = 'Chisq')
+xmdl_f <- lmer(iconicity ~ t_c + t_c2 +	# fixed effects
+	(1|dyad) + (0+t_c2|dyad),		# random effects
+	data = dyads, REML = F)
+
+
+anova(xmdl_noLINQR, xmdl_noLIN, xmdl_noQR, xmdl_f)
 # Explanation:
-# - the null model (intercept only) differs from the linear model, hence the linear effect is significant
-# - the linear model differs from the quadratic model, hence the quadratic effect is significant
+# - the model with a quadratic term differs from the null model, hence the quadratic effect is significant
+# - the model with a linear term only is better than a model with a quadratic term only
+# - the model with both a quadratic term and a linear term is better than a model with a linear term only
 # - notice that we kept the random effects structure constant across the comparisons
 
 ## Inspect residuals (assumptions):
@@ -164,21 +204,17 @@ plot(fitted(xmdl), residuals(xmdl))	# o.k.
 ## ... in other cases however, it is not obvious what order of polynomials is supported by the data
 ## To demonstrate, we show how to choose a polynomial form for the data:
 
-all_polys <- data.frame(poly(1:10, degree = 4))
-all_polys <- do.call('rbind', replicate(10, all_polys, simplify = F))	# match length of dataframe
-dyads <- cbind(dyads, all_polys)	# this depends on the dataset being sorted
-
 ## Models with different polynomials:
 
-xmdl1 <- lmer(iconicity ~ X1 + (1|dyad), data = dyads, REML = F)
-xmdl2 <- lmer(iconicity ~ X1 + X2 + (1|dyad), data = dyads, REML = F)
-xmdl3 <- lmer(iconicity ~ X1 + X2 + X3 + (1|dyad), data = dyads, REML = F)
-xmdl4 <- lmer(iconicity ~ X1 + X2 + X3 + X4 + (1|dyad), data = dyads, REML = F)
+xmdl1 <- lmer(iconicity ~ poly(t,1) + (1|dyad), data = dyads, REML = F)
+xmdl2 <- lmer(iconicity ~ poly(t,2) + (1|dyad), data = dyads, REML = F)
+xmdl3 <- lmer(iconicity ~ poly(t,3) + (1|dyad), data = dyads, REML = F)
+xmdl4 <- lmer(iconicity ~ poly(t,4) + (1|dyad), data = dyads, REML = F)
 
 ## Test them against each other:
 
-anova(xmdl1, xmdl2, xmdl3, xmdl4, test = 'Chisq')
-# only the quadratic model differs significantly from the linear
+anova(xmdl1, xmdl2, xmdl3, xmdl4)
+# only the quadratic model differs significantly from the linear model
 # thus there is no support for polynomials above order 2
 
 
@@ -187,7 +223,181 @@ anova(xmdl1, xmdl2, xmdl3, xmdl4, test = 'Chisq')
 ## Analysis of repeated interaction experiment (dyads) using GAMs:
 ##------------------------------------------------------------------
 
-## @ Martijn: this is where your analysis comes in...
+## Load the mgcv library:
+
+library(mgcv)
+
+## Fit the model with a non-linear effect over time:
+
+m <- bam(iconicity ~ s(t, k=5) + # fixed effects
+	s(t,dyad,bs='fs',k=5,m=1),		# random effects
+	data = dyads, method='fREML')
+# As there are only 10 time points, k is set to at most 5
+# method = 'fREML' is comparable to REML = T in the mixed-effects syntax
+# The warning ("model has repeated 1-d smooths of same variable") can be ignored
+
+## Show the model summary:
+
+summary(m)
+# as the edf for s(t) > 1, there is a non-linear effect for t
+# as the p-value for the s(t,dyads) is significant, we need 
+# to take this individual variation into account
+
+## Load plotting library:
+
+library(itsadug)
+
+## Plot effect of t(ime)
+
+plot_smooth(m, 't', rm.ranef = T, main = 'Effect of t(ime)')
+
+## Plot individual variation:
+
+plot(m, select = 2)
+
+## Inspect autocorrelation:
+
+acf_resid(m, max_lag = 9)
+# the second line is positioned below the blue dashed line => 
+# no significant autocorrelation
+
+# suppose, however, that the autocorrelation was significant
+# we can correct for this by including the parameters
+# 'rho' and 'AR.start' 
+
+## Define starting point for each time series:
+
+dyads2 <- start_event(dyads, column = 't', event = 'dyad')
+# start_event orders the data and adds a column 'start.event' which 
+# holds the value TRUE for the first time point in each event and 
+# FALSE otherwise (in this case, each dyad has a single time series, 
+# so event is the same as dyad)
+
+## The amount of autocorrelation is set to the height of the second bar:
+
+rhoval <- acf_resid(m)[2]
+
+## And we refit the model:
+
+m2 <- bam(iconicity ~ s(t, k = 5) + 			# fixed effects
+	s(t, dyad, bs = 'fs', k = 5, m = 1),		# random effects
+	data = dyads2, method='fREML',
+	rho=rhoval, AR.start=start.event		# autocorrelation parameters
+    )
+
+acf_resid(m2) # no significant autocorrelation (as before)
+
+
+##------------------------------------------------------------------
+## Additional examples: logistic GAM
+##------------------------------------------------------------------
+
+## For demonstrating purposes we create a median split:
+
+dyads$iconicity_binary <- (dyads$iconicity > median(dyads$iconicity)) * 1
+# this transform the continuous iconicity measure into a binary variable
+
+## Plotting this:
+
+plot(dyads$t, jitter(dyads$iconicity_binary))
+
+## Fitting a logistic GAM:
+
+mb <- bam(iconicity_binary ~ s(t, k = 5) + # fixed effects
+	     s(t, dyad, bs = 'fs', k = 5, m = 1),		# random effects
+	     data = dyads, method = 'fREML',
+	     family = 'binomial' # necessary for fitting a logistic GAM
+	 )              
+
+## Plot the effect of t(ime); first set up plotting window for two plots:
+
+par(mfrow = c(1, 2))
+
+## First plot; plot dependent variable in logits:
+
+plot_smooth(mb, 't', rm.ranef = T,
+	main = 'Effect of t(ime): logits (log-odds)')
+
+## Second plot; Plot dependent variable in probabilities:
+
+plot_smooth(mb, 't', rm.ranef = T,
+	main = 'Effect of t(ime): probabilities', transform = plogis)
+
+
+##------------------------------------------------------------------
+## Additional examples: Poisson GAM
+##------------------------------------------------------------------
+
+## For demonstrating purposes, we transform iconicity into a count variable:
+
+dyads$iconicity_int = round(dyads$iconicity)
+# (all values are now integer, which is a requirement for applying a Poisson model)
+
+## Fitting a Poisson GAM:
+
+mp <- bam(iconicity_int ~ s(t, k = 5) + # fixed effects
+	     s(t, dyad, bs = 'fs', k = 5, m = 1),		# random effects
+	     data = dyads, method = 'fREML',
+	     family = 'poisson'# necessary for fitting a Poisson GAM
+	 )              
+
+## Plot the effect of t(ime); first set up plotting window for two plots:
+
+par(mfrow=c(1, 2))
+
+## First plot; plot dependent variable in logs:
+
+plot_smooth(mp, 't', rm.ranef = T,
+	main = 'Effect of t(ime): log values')
+
+## Second plot; Plot dependent variable in counts:
+
+plot_smooth(mp, 't', rm.ranef = T,
+	main = 'Effect of t(ime): count values', transform = exp) 
+
+
+##------------------------------------------------------------------
+## Additional examples: Group differences in a GAM
+##------------------------------------------------------------------
+
+## For this purpose we create a factorial predictor with two levels 'A' and 'B':
+
+dyadsG <- dyads
+dyadsG$Group <- 'A'
+dyadsG[sample(1:100, 50, replace = F),]$Group <- 'B'
+dyadsG$Group <- as.factor(dyadsG$Group)
+# dyadsG now contains a column that has a binary group contrast
+
+## Create distinct pattern for group A (manipulating the data for demonstrating purposes):
+
+dyadsG[dyadsG$Group == 'A', ]$iconicity <- 
+    dyadsG[dyadsG$Group == 'A', ]$iconicity + (dyadsG[dyadsG$Group == 'A', ]$t ^ 3) / 100
+
+## Model time, differently for group 'A' and for group 'B' (interaction):
+
+mg <- bam(iconicity ~ s(t, by = Group, k = 5) + Group + # fixed effects
+	     s(t, dyad, bs = 'fs', k = 5, m = 1),		# random effects
+	     data = dyadsG, method = 'fREML'
+	 )              
+
+## Plot resulting patterns (for both groups):
+
+plot_smooth(mg, 't', rm.ranef = T,
+	plot_all = 'Group', main = 'Effect of t(ime)')
+
+## Plot difference between A and B:
+
+plot_diff(mg, 't', rm.ranef = T, comp = list(Group = c('A', 'B')))
+
+## Assessing if the difference is necessary by comparing to a simpler model
+## without the group distinction:
+
+m0 <- bam(iconicity ~ s(t, k = 5) + # fixed effects
+	     s(t, dyad, bs = 'fs', k = 5, m = 1),		# random effects
+	     data = dyadsG, method = 'fREML'
+	 )  
+
+compareML(m0, mg) ## model with group distinction is better
 
 
 
