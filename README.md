@@ -11,6 +11,8 @@ Supplementary materials (S1) for Journal of Language Evolution tutorial on lingu
 - 'example1_iterated.csv' : contains example data showing a linear effect
 - 'example2_dyads.csv' : contains example data showing a quadratic effect
 - 'supplementary_materials_example_analyses.R' : the main analysis demonstration
+- 'analysis.Rmd' : the main analysis as an annotated R mark down file
+- 'analysis.html' : the main analysis, R markdown: html version
 - 'publication_figures.R' : code used to construct figures in the paper
 - 'create_example_data.R' : code used to create example data
 
