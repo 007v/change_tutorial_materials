@@ -3,6 +3,26 @@
 ## Created: September 5, 2015
 ## Last changed: September 7, 2015; October 1, 2015
 
+## Install packages if not yet installed:
+
+packages <- c('mgcv', 'itsadug', 'lme4', 'nloptr')
+if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
+  install.packages(setdiff(packages, rownames(installed.packages())))  
+}
+
+## Load required packages:
+
+library(lme4) # for GCA
+library(mgcv) # for GAMs
+library(itsadug) # for plotting GAMs
+
+## Version information:
+
+R.version.string
+packageVersion('lme4')
+packageVersion('mgcv')
+packageVersion('itsadug')
+
 ## Load in data:
 
 IL <- read.csv('example1_iterated.csv')
