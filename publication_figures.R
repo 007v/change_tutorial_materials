@@ -4,6 +4,7 @@
 
 ## Load in data:
 
+setwd('/Users/teeniematlock/Desktop/research/linguistic_change_analysis/')
 IL <- read.csv('example1_iterated.csv')
 dyads <- read.csv('example2_dyads.csv')
 
@@ -206,6 +207,7 @@ gam_preds$LL <- gam_preds$fit - 1.96 * gam_preds$se.fit
 
 ## Extract smooth terms (factor smooths for dyads):
 
+library(itsadug)
 fsmooths <- get_modelterm(xmdl, 2)$fit	# second term based on summary(xmdl), 30 data points per dyad
 dyad_id <- cut(1:300, 10)
 all_dyads <- unique(dyad_id)
@@ -213,7 +215,7 @@ all_dyads <- unique(dyad_id)
 ## Plotting window parameters:
 
 quartz('', 11, 5)
-par(mfrow = c(1, 2), omi = c(0.75, 1.25, 0.5, 0), mai = c(0.25, 0.25, 0.25, 0.25))
+par(mfrow = c(1, 2), omi = c(0.75, 1.25, 0.5, 0.5), mai = c(0.25, 0.25, 0.25, 0.25))
 
 ## Figure 5a:
 
@@ -238,6 +240,7 @@ for(i in 1:10){	# predictions for different chains
 		lwd = 3, type = 'l', lty = i)
 	}
 axis(side = 1, at = 1:10, labels = 1:10, font = 2, cex.axis = 1.25, lwd = 2)
+axis(side = 4, at = seq(-2, 2, 1), las = 2, font = 2, cex.axis = 1.25, lwd = 2)
 mtext('Time / Interaction round', side = 1, line = 3, cex = 1.8, font = 2)
 mtext('Dyad smooths', side = 3, line = 0.8, cex = 2.25, font = 2)
 text(1.1, 9.75, labels = '(b)', font = 2, cex = 1.5)
